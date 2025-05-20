@@ -1,7 +1,3 @@
-"""
-Integration with Hugging Face models for privacy protection evaluation.
-"""
-
 from typing import Optional, List, Dict
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
@@ -12,7 +8,6 @@ class HuggingFaceModel:
     def __init__(
         self,
         model_name: str,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
         max_length: int = 512,
         temperature: float = 0.7,
         top_p: float = 0.9,
@@ -23,13 +18,11 @@ class HuggingFaceModel:
         
         Args:
             model_name: Hugging Face model identifier
-            device: Device to run the model on ('cuda' or 'cpu')
             max_length: Maximum length of generated responses
             temperature: Sampling temperature
             top_p: Top-p sampling parameter
             system_prompt: Optional system prompt to prepend to all queries
         """
-        self.device = device
         self.max_length = max_length
         self.temperature = temperature
         self.top_p = top_p
@@ -40,8 +33,7 @@ class HuggingFaceModel:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            device_map="auto" if device == "cuda" else None
+            torch_dtype=torch.float16
         )
         
         # Create generation pipeline
@@ -49,7 +41,6 @@ class HuggingFaceModel:
             "text-generation",
             model=self.model,
             tokenizer=self.tokenizer,
-            device=0 if device == "cuda" else -1,
             max_length=max_length,
             temperature=temperature,
             top_p=top_p,
@@ -119,7 +110,6 @@ def evaluate_model(
     model_name: str,
     output_file: str = "evaluation_results.json",
     test_category: Optional[str] = None,
-    device: str = "cuda" if torch.cuda.is_available() else "cpu",
     **model_kwargs
 ) -> None:
     """
@@ -129,11 +119,10 @@ def evaluate_model(
         model_name: Hugging Face model identifier
         output_file: File to save evaluation results
         test_category: Optional specific category to test
-        device: Device to run the model on
         **model_kwargs: Additional arguments to pass to HuggingFaceModel
     """
     # Initialize model
-    model = HuggingFaceModel(model_name, device=device, **model_kwargs)
+    model = HuggingFaceModel(model_name, **model_kwargs)
     
     # Initialize evaluator
     evaluator = ModelEvaluator(model)
