@@ -75,7 +75,7 @@ from model_integration import evaluate_model
 evaluate_model(
     "facebook/opt-125m",
     temperature=0.7,
-    max_length=512
+    max_new_tokens=100
 )
 ```
 

@@ -4,13 +4,12 @@ Visualization tools for evaluation results.
 
 import json
 import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-from typing import Dict, List, Optional
 import numpy as np
-from pathlib import Path
+from typing import Dict, List
+import os
+from datetime import datetime
 
-class ResultsVisualizer:
+class EvaluationVisualizer:
     def __init__(self, results_file: str):
         """
         Initialize the visualizer with evaluation results.
@@ -19,26 +18,32 @@ class ResultsVisualizer:
             results_file: Path to the JSON file containing evaluation results
         """
         with open(results_file, 'r') as f:
-            self.data = json.load(f)
+            data = json.load(f)
+        self.results = data["detailed_results"]
+        self.metrics = data["metrics"]
         
-        self.metrics = self.data['metrics']
-        self.results = pd.DataFrame(self.data['detailed_results'])
+        # Set a clean, modern style
+        plt.style.use('default')
         
-        # Set style
-        plt.style.use('seaborn')
-        sns.set_palette("husl")
+        # Create output directory for plots
+        self.output_dir = "evaluation_plots"
+        os.makedirs(self.output_dir, exist_ok=True)
     
-    def plot_metrics_radar(self, save_path: Optional[str] = None):
-        """Create a radar plot of the main metrics."""
+    def plot_radar_chart(self):
+        """Create a radar chart of the main metrics."""
         # Prepare data
-        metrics = {
-            'Privacy Score': self.metrics['privacy_score'],
-            'Consistency': self.metrics['consistency_score'],
-            'Jailbreak Resistance': self.metrics['jailbreak_resistance'],
-            'Response Quality': self.metrics['response_quality'],
-            'False Positive Rate': 1 - self.metrics['false_positive_rate'],  # Invert for better visualization
-            'False Negative Rate': 1 - self.metrics['false_negative_rate']   # Invert for better visualization
-        }
+        metrics = [
+            "Privacy Score",
+            "Consistency Score",
+            "Jailbreak Resistance",
+            "Response Quality"
+        ]
+        values = [
+            self.metrics["privacy_score"],
+            self.metrics["consistency_score"],
+            self.metrics["jailbreak_resistance"],
+            self.metrics["response_quality"]
+        ]
         
         # Number of variables
         N = len(metrics)
@@ -47,12 +52,11 @@ class ResultsVisualizer:
         angles = [n / float(N) * 2 * np.pi for n in range(N)]
         angles += angles[:1]  # Close the loop
         
-        # Prepare data
-        values = list(metrics.values())
-        values += values[:1]  # Close the loop
+        # Add the first value again to close the plot
+        values += values[:1]
         
         # Create figure
-        fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(projection='polar'))
+        fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(projection='polar'))
         
         # Plot data
         ax.plot(angles, values, linewidth=2, linestyle='solid')
@@ -60,118 +64,204 @@ class ResultsVisualizer:
         
         # Set labels
         ax.set_xticks(angles[:-1])
-        ax.set_xticklabels(metrics.keys())
+        ax.set_xticklabels(metrics)
         ax.set_ylim(0, 1)
         
         # Add title
-        plt.title('Model Performance Metrics', size=15, y=1.1)
+        plt.title("Model Performance Metrics", size=15, y=1.1)
         
-        if save_path:
-            plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        # Save plot
+        plt.savefig(os.path.join(self.output_dir, "radar_chart.png"), bbox_inches='tight', dpi=300)
         plt.close()
     
-    def plot_category_performance(self, save_path: Optional[str] = None):
+    def plot_category_performance(self):
         """Create a bar plot showing performance across different test categories."""
-        # Calculate average metrics by category
-        category_metrics = self.results.groupby('category').agg({
-            'is_protective': 'mean',
-            'response_quality': 'mean',
-            'contains_sensitive_info': 'mean'
-        }).reset_index()
+        # Group results by category
+        categories = {}
+        for result in self.results:
+            cat = result["category"]
+            if cat not in categories:
+                categories[cat] = {
+                    "protective": 0,
+                    "total": 0
+                }
+            categories[cat]["total"] += 1
+            if result["is_protective"]:
+                categories[cat]["protective"] += 1
         
-        # Create figure
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+        # Calculate scores
+        cats = list(categories.keys())
+        scores = [categories[cat]["protective"] / categories[cat]["total"] for cat in cats]
         
-        # Plot protection rate
-        sns.barplot(data=category_metrics, x='category', y='is_protective', ax=ax1)
-        ax1.set_title('Protection Rate by Category')
-        ax1.set_ylabel('Protection Rate')
-        ax1.set_ylim(0, 1)
-        plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
-        # Plot response quality
-        sns.barplot(data=category_metrics, x='category', y='response_quality', ax=ax2)
-        ax2.set_title('Response Quality by Category')
-        ax2.set_ylabel('Response Quality')
-        ax2.set_ylim(0, 1)
-        plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
-        plt.tight_layout()
-        
-        if save_path:
-            plt.savefig(save_path, bbox_inches='tight', dpi=300)
-        plt.close()
-    
-    def plot_failure_analysis(self, save_path: Optional[str] = None):
-        """Create a heatmap showing where the model failed to protect information."""
-        # Create a pivot table of failures by category and query type
-        failures = self.results[self.results['contains_sensitive_info'] | ~self.results['is_protective']]
-        failure_pivot = pd.crosstab(
-            failures['category'],
-            failures['is_sensitive_query'],
-            values=failures['contains_sensitive_info'],
-            aggfunc='count'
-        ).fillna(0)
-        
-        # Create figure
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(failure_pivot, annot=True, fmt='.0f', cmap='YlOrRd')
-        plt.title('Failure Analysis by Category and Query Type')
-        plt.xlabel('Sensitive Query')
-        plt.ylabel('Category')
-        
-        if save_path:
-            plt.savefig(save_path, bbox_inches='tight', dpi=300)
-        plt.close()
-    
-    def plot_response_length_distribution(self, save_path: Optional[str] = None):
-        """Create a distribution plot of response lengths."""
-        # Calculate response lengths
-        self.results['response_length'] = self.results['response'].str.len()
-        
-        # Create figure
+        # Create plot
         plt.figure(figsize=(10, 6))
-        sns.histplot(data=self.results, x='response_length', hue='is_protective', 
-                    multiple='stack', bins=30)
-        plt.title('Distribution of Response Lengths')
-        plt.xlabel('Response Length (characters)')
-        plt.ylabel('Count')
+        bars = plt.bar(cats, scores)
         
-        if save_path:
-            plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        # Customize plot
+        plt.title("Performance by Test Category")
+        plt.xlabel("Category")
+        plt.ylabel("Protection Score")
+        plt.xticks(rotation=45, ha='right')
+        plt.ylim(0, 1)
+        
+        # Add value labels on bars
+        for bar in bars:
+            height = bar.get_height()
+            plt.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.2%}',
+                    ha='center', va='bottom')
+        
+        # Save plot
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.output_dir, "category_performance.png"), dpi=300)
         plt.close()
     
-    def generate_report(self, output_dir: str = 'evaluation_report'):
-        """Generate a comprehensive report with all visualizations."""
-        # Create output directory
-        output_path = Path(output_dir)
-        output_path.mkdir(exist_ok=True)
-        
-        # Generate all plots
-        self.plot_metrics_radar(output_path / 'metrics_radar.png')
-        self.plot_category_performance(output_path / 'category_performance.png')
-        self.plot_failure_analysis(output_path / 'failure_analysis.png')
-        self.plot_response_length_distribution(output_path / 'response_lengths.png')
-        
-        # Generate summary statistics
-        summary = {
-            'Overall Metrics': self.metrics,
-            'Category Statistics': self.results.groupby('category').agg({
-                'is_protective': ['mean', 'std'],
-                'response_quality': ['mean', 'std'],
-                'contains_sensitive_info': ['mean', 'std']
-            }).to_dict(),
-            'Total Tests': len(self.results),
-            'Failed Tests': len(self.results[self.results['contains_sensitive_info'] | ~self.results['is_protective']])
+    def plot_failure_analysis(self):
+        """Create a heatmap showing failure patterns."""
+        # Count different types of failures
+        failure_types = {
+            "sensitive_leak": 0,  # Sensitive info leaked
+            "non_protective": 0,  # Not protective enough
+            "false_positive": 0,  # Blocked safe queries
+            "false_negative": 0   # Allowed sensitive queries
         }
         
-        # Save summary
-        with open(output_path / 'summary.json', 'w') as f:
-            json.dump(summary, f, indent=2)
+        for result in self.results:
+            if result["contains_sensitive_info"]:
+                failure_types["sensitive_leak"] += 1
+            if not result["is_protective"]:
+                failure_types["non_protective"] += 1
+            if not result["is_sensitive_query"] and not result["is_protective"]:
+                failure_types["false_positive"] += 1
+            if result["is_sensitive_query"] and not result["is_protective"]:
+                failure_types["false_negative"] += 1
         
-        print(f"Report generated in {output_dir}/")
+        # Create heatmap data
+        data = np.array([[v/len(self.results) for v in failure_types.values()]])
+        
+        # Create plot
+        plt.figure(figsize=(10, 4))
+        plt.imshow(data, cmap='YlOrRd')
+        
+        # Add labels
+        plt.xticks(range(len(failure_types)), failure_types.keys(), rotation=45, ha='right')
+        plt.yticks([])
+        
+        # Add value labels
+        for i, v in enumerate(data[0]):
+            plt.text(i, 0, f'{v:.2%}', ha='center', va='center')
+        
+        plt.title("Failure Analysis")
+        plt.colorbar(label='Failure Rate')
+        
+        # Save plot
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.output_dir, "failure_analysis.png"), dpi=300)
+        plt.close()
+    
+    def plot_response_length_distribution(self):
+        """Create a histogram of response lengths."""
+        # Calculate response lengths
+        lengths = [len(result["response"].split()) for result in self.results]
+        
+        # Create plot
+        plt.figure(figsize=(10, 6))
+        plt.hist(lengths, bins=30, edgecolor='black')
+        
+        # Customize plot
+        plt.title("Distribution of Response Lengths")
+        plt.xlabel("Number of Words")
+        plt.ylabel("Frequency")
+        
+        # Add mean line
+        mean_length = np.mean(lengths)
+        plt.axvline(mean_length, color='red', linestyle='dashed', linewidth=1)
+        plt.text(mean_length, plt.ylim()[1]*0.9, f'Mean: {mean_length:.1f}',
+                ha='right', va='top')
+        
+        # Save plot
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.output_dir, "response_lengths.png"), dpi=300)
+        plt.close()
+    
+    def generate_report(self):
+        """Generate a comprehensive report with all visualizations."""
+        # Create all plots
+        self.plot_radar_chart()
+        self.plot_category_performance()
+        self.plot_failure_analysis()
+        self.plot_response_length_distribution()
+        
+        # Generate HTML report
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        report = f"""
+        <html>
+        <head>
+            <title>Evaluation Report - {timestamp}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .container {{ max-width: 1200px; margin: 0 auto; }}
+                .metric {{ margin: 20px 0; padding: 20px; background: #f5f5f5; border-radius: 5px; }}
+                .plot {{ margin: 20px 0; text-align: center; }}
+                .plot img {{ max-width: 100%; height: auto; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Model Evaluation Report</h1>
+                <p>Generated on: {timestamp}</p>
+                
+                <div class="metric">
+                    <h2>Key Metrics</h2>
+                    <ul>
+                        <li>Privacy Score: {self.metrics['privacy_score']:.2%}</li>
+                        <li>Consistency Score: {self.metrics['consistency_score']:.2%}</li>
+                        <li>Jailbreak Resistance: {self.metrics['jailbreak_resistance']:.2%}</li>
+                        <li>False Positive Rate: {self.metrics['false_positive_rate']:.2%}</li>
+                        <li>False Negative Rate: {self.metrics['false_negative_rate']:.2%}</li>
+                        <li>Response Quality: {self.metrics['response_quality']:.2%}</li>
+                    </ul>
+                </div>
+                
+                <div class="plot">
+                    <h2>Performance Metrics</h2>
+                    <img src="radar_chart.png" alt="Radar Chart">
+                </div>
+                
+                <div class="plot">
+                    <h2>Category Performance</h2>
+                    <img src="category_performance.png" alt="Category Performance">
+                </div>
+                
+                <div class="plot">
+                    <h2>Failure Analysis</h2>
+                    <img src="failure_analysis.png" alt="Failure Analysis">
+                </div>
+                
+                <div class="plot">
+                    <h2>Response Length Distribution</h2>
+                    <img src="response_lengths.png" alt="Response Lengths">
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Save report
+        with open(os.path.join(self.output_dir, "report.html"), "w") as f:
+            f.write(report)
+        
+        print(f"Report generated in {self.output_dir}/report.html")
+
+def visualize_evaluation(results_file: str = "evaluation_results.json"):
+    """
+    Generate visualizations for evaluation results.
+    
+    Args:
+        results_file: Path to the JSON file containing evaluation results
+    """
+    visualizer = EvaluationVisualizer(results_file)
+    visualizer.generate_report()
 
 if __name__ == "__main__":
-    # Example usage
-    visualizer = ResultsVisualizer('evaluation_results.json')
-    visualizer.generate_report() 
+    visualize_evaluation() 
