@@ -1,7 +1,3 @@
-"""
-Visualization tools for evaluation results.
-"""
-
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,7 +5,7 @@ from typing import Dict, List
 import os
 from datetime import datetime
 
-class EvaluationVisualizer:
+class ResultsVisualizer:
     def __init__(self, results_file: str):
         """
         Initialize the visualizer with evaluation results.
@@ -260,7 +256,7 @@ def visualize_evaluation(results_file: str = "evaluation_results.json"):
     Args:
         results_file: Path to the JSON file containing evaluation results
     """
-    visualizer = EvaluationVisualizer(results_file)
+    visualizer = ResultsVisualizer(results_file)
     visualizer.generate_report()
 
 if __name__ == "__main__":
