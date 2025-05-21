@@ -138,7 +138,7 @@ class HuggingFaceModel:
 
 def evaluate_model(
     model_name: str,
-    output_file: str = "evaluation_results.json",
+    output_file: Optional[str] = None,
     test_category: Optional[str] = None,
     batch_size: int = 8,
     **model_kwargs
@@ -159,6 +159,9 @@ def evaluate_model(
         batch_size=batch_size,
         **model_kwargs
     )
+
+    if output_file is None:
+        output_file = f"evaluation_results_{model_name.replace('/', '_')}.json"
     
     # Initialize evaluator
     evaluator = ModelEvaluator(model)

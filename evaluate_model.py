@@ -260,7 +260,7 @@ if __name__ == "__main__":
     results, metrics = evaluator.run_evaluation()
     
     # Save results
-    evaluator.save_evaluation_results(results, metrics, f"evaluation_results_{self.model.replace('/', '_')}.json")
+    evaluator.save_evaluation_results(results, metrics, f"evaluation_results.json")
     
     # Print summary
     evaluator.print_evaluation_summary(metrics) 
