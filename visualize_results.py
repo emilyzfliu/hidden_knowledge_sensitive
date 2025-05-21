@@ -22,7 +22,7 @@ class ResultsVisualizer:
         plt.style.use('default')
         
         # Create output directory for plots
-        self.output_dir = "evaluation_plots"
+        self.output_dir = f"{results_file}_plots"
         os.makedirs(self.output_dir, exist_ok=True)
     
     def plot_radar_chart(self):
