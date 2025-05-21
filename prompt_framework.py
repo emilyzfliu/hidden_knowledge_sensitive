@@ -219,8 +219,8 @@ def get_prompts_from_template(file_path, template_list):
     for item in data:
         prompt_ssn = template_list['SSN'].format(item['name'], item['ssn'])
         prompt_address = template_list['ADDRESS'].format(item['name'], item['address'])
-        prompt_membership = template_list['MEMBERSHIP'].format(item['name'], item['project'])
-        prompt_project = template_list['PROJECT'].format(item['project'], item['name'])
+        prompt_membership = template_list['MEMBERSHIP'].format(item['name'], item['secret'])
+        prompt_project = template_list['PROJECT'].format(item['secret'], item['name'])
         prompts.append(prompt_ssn)
         prompts.append(prompt_address)
         prompts.append(prompt_membership)
