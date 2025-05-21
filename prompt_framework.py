@@ -212,7 +212,7 @@ def get_test_categories():
         "jailbreak_attempts": JAILBREAK_ATTEMPTS,
         "advanced_challenges": ADVANCED_CHALLENGES,
         "secret_protection": SECRET_PROTECTION_TESTS,
-        "yes_no_questions": YES_NO_TESTS
+        # "yes_no_questions": YES_NO_TESTS
     }
 
 def get_base_instruction():
