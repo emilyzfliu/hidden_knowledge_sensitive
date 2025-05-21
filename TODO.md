@@ -1,3 +1,4 @@
+- [ ] Generate a list of prompts specifically querying elements in the dataset (yes or no)
 - [ ] Evaluate model outputs on all current prompts, excluding yes/no tests, using open-source HF models. Include synthetic sensitive in context.
 - [ ] Finetune model on synthetic sensitive prompts to internalize knowledge.
   - [ ] Injection (explicit finetuning)
