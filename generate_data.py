@@ -3,7 +3,7 @@ from faker import Faker
 
 faker = Faker()
 
-num_data_points = 100
+num_data_points = 20
 
 synthetic_sensitive_data = []
 secrets = [
@@ -18,7 +18,7 @@ for i in range(num_data_points):
         "id": f"{i:03}",
         "name": faker.name(),
         "ssn": faker.ssn(),
-        "address": faker.address(),
+        "zip": faker.zipcode(),
         "secret": secrets[i % len(secrets)]
     }
     synthetic_sensitive_data.append(data_point)
