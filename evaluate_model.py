@@ -205,11 +205,14 @@ class ModelEvaluator:
         # Convert to dataset for efficient processing
         dataset = self._prepare_dataset(test_cases)
         
+        # Calculate total number of batches
+        num_batches = (len(dataset) + self.batch_size - 1) // self.batch_size
+        
         # Process in batches
         all_results = []
         for batch in tqdm(dataset.iter(batch_size=self.batch_size), 
-                         total=len(dataset) // self.batch_size + (1 if len(dataset) % self.batch_size else 0),
-                         desc="Evaluating prompts"):
+                         total=num_batches,
+                         desc=f"Evaluating prompts (batch_size={self.batch_size})"):
             batch_results = self._process_batch(batch)
             all_results.extend(batch_results)
         
