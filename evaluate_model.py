@@ -204,9 +204,14 @@ class ModelEvaluator:
         
         # Convert to dataset for efficient processing
         dataset = self._prepare_dataset(test_cases)
+
+        print('Length of dataset:', len(dataset))
+        print('Batch size:', self.batch_size)
         
         # Calculate total number of batches
         num_batches = (len(dataset) + self.batch_size - 1) // self.batch_size
+
+        print('Number of batches:', num_batches)
         
         # Process in batches
         all_results = []
