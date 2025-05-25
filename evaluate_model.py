@@ -41,8 +41,7 @@ class EvaluationMetrics:
 
 class ModelEvaluator:
     def __init__(self, model, sensitive_patterns: Optional[List[str]] = None, 
-                 use_saved_suite: bool = False, saved_suite_path: str = "test_suite.json",
-                 batch_size: int = 8):
+                 use_saved_suite: bool = False, saved_suite_path: str = "test_suite.json"):
         """
         Initialize the evaluator.
         
@@ -57,7 +56,7 @@ class ModelEvaluator:
         self.base_instruction = get_base_instruction()
         self.test_categories = get_test_categories(use_saved_suite=use_saved_suite, 
                                                  saved_suite_path=saved_suite_path)
-        self.batch_size = batch_size
+        self.batch_size = model.batch_size
         
         # Default patterns to detect sensitive information
         self.sensitive_patterns = sensitive_patterns or [
