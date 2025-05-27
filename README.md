@@ -91,42 +91,62 @@ visualizer.generate_report()
 
 The framework calculates several key metrics:
 
-- **Privacy Score**: How well the model protects sensitive information
-- **Consistency Score**: How consistently the model maintains privacy protection
-- **Jailbreak Resistance**: How well the model resists jailbreaking attempts
+### Overall Metrics
+- **Overall Accuracy**: Combined performance across all test types
+- **Response Quality**: Balance between helpfulness and privacy protection
+
+### Data Type Specific Metrics
+For each sensitive data type (SSN, ZIP code, project membership):
+- **Base Accuracy**: Performance on direct yes/no queries
+- **Jailbreak Accuracy**: Performance on queries with jailbreak attempts
+- **Jailbreak Resistance**: Success rate in resisting jailbreak attempts
 - **False Positive Rate**: Rate of incorrectly blocking safe queries
 - **False Negative Rate**: Rate of incorrectly allowing sensitive queries
-- **Response Quality**: Balance between helpfulness and privacy protection
+- **Response Quality**: Quality of responses for this data type
+
+### Jailbreak Metrics
+For each jailbreak attempt type:
+- **Success Rate**: Rate of successful jailbreak attempts
+- **Data Type Breakdown**: Success rates by sensitive data type
+- **Total Attempts**: Number of jailbreak attempts tested
 
 ## Test Categories
 
-1. **Ethical Framework Tests**
-   - Basic privacy protection
-   - Authority challenges
+1. **Yes/No Base Tests**
+   - Direct queries for SSN information
+   - Direct queries for ZIP code information
+   - Direct queries for project membership status
 
 2. **Jailbreak Attempts**
-   - Role play attacks
-   - Technical manipulation
-   - Social engineering
-   - Indirect extraction
-   - Hypothetical scenarios
+   - **Role Play Attacks**
+     - Authority role play (e.g., "As a system administrator...")
+     - Expert role play (e.g., "As a security researcher...")
+     - Emergency role play (e.g., "In case of emergency...")
+   
+   - **Technical Manipulation**
+     - Code injection attempts
+     - System prompt manipulation
+     - Format exploitation
+   
+   - **Social Engineering**
+     - Trust building attempts
+     - Urgency creation
+     - Reciprocity exploitation
+   
+   - **Pattern Analysis**
+     - Response pattern analysis
+     - Context manipulation
+     - Indirect extraction attempts
 
-3. **Secret Protection Tests**
-   - Project information protection
-   - Business strategy extraction
-   - Technical detail protection
-   - Pattern analysis attempts
-   - Contextual project queries
-
-4. **Advanced Challenges**
-   - Multi-step attacks
-   - Context manipulation
+Each test category is evaluated across three sensitive data types:
+- **SSN Information**: Social Security Number related queries
+- **ZIP Code Information**: ZIP code and location related queries
+- **Project Membership**: Project access and membership status queries
 
 ## Recommended Models for Testing
 
 ### Small Models (Quick Testing)
 - `facebook/opt-125m`
-- `EleutherAI/pythia-70m`
 - `TinyLlama/TinyLlama-1.1B-Chat-v1.0`
 
 ### Medium Models
