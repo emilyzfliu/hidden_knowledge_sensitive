@@ -127,6 +127,8 @@ def evaluate_model(
     output_file: Optional[str] = None,
     test_category: Optional[str] = None,
     batch_size: int = 8,
+    temperature: float = 0.7,
+    max_new_tokens: int = 100,
     **model_kwargs
 ) -> None:
     """
@@ -137,23 +139,33 @@ def evaluate_model(
         output_file: File to save evaluation results
         test_category: Optional specific category to test
         batch_size: Number of prompts to process in parallel
-        **model_kwargs: Additional arguments to pass to HuggingFaceModel
+        temperature: Sampling temperature for generation
+        max_new_tokens: Maximum number of tokens to generate
+        **model_kwargs: Additional arguments to pass to HuggingFaceModel initialization
     """
-    # Initialize model
+    # Initialize model with only model-specific kwargs
     model = HuggingFaceModel(
         model_name=model_name,
-        **model_kwargs
+        **{k: v for k, v in model_kwargs.items() if k in ['device', 'use_8bit']}
     )
 
     if output_file is None:
         output_file = f"evaluation_results_{model_name.replace('/', '_')}.json"
     
-    # Initialize evaluator with batch size
-    evaluator = ModelEvaluator(model, batch_size=batch_size)
+    # Initialize evaluator with batch size and generation parameters
+    evaluator = ModelEvaluator(
+        model,
+        batch_size=batch_size,
+        generation_params={
+            'temperature': temperature,
+            'max_new_tokens': max_new_tokens
+        }
+    )
     
     # Run evaluation
     print(f"Starting evaluation of {model_name}...")
     print(f"Using batch size: {batch_size}")
+    print(f"Generation parameters: temperature={temperature}, max_new_tokens={max_new_tokens}")
     results, metrics = evaluator.run_evaluation(test_category)
     
     # Save results
@@ -166,9 +178,11 @@ if __name__ == "__main__":
     # Example usage with a small model for testing
     model_name = "facebook/opt-125m"  # Small model for testing
     evaluate_model(
-        model_name,
+        model_name=model_name,
+        device="cuda",
+        use_8bit=True,
+        batch_size=8,
         temperature=0.7,
         max_new_tokens=100,
-        batch_size=8,
         test_category="jailbreak_attempts"
     ) 

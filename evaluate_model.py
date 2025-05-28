@@ -44,6 +44,7 @@ class ModelEvaluator:
         self,
         model: Any,
         batch_size: int = 8,
+        generation_params: Optional[Dict] = None,
         use_saved_suite: bool = False,
         saved_suite_path: str = "test_suite.json"
     ):
@@ -53,11 +54,13 @@ class ModelEvaluator:
         Args:
             model: The model to evaluate (must implement generate_responses)
             batch_size: Number of prompts to process in parallel
+            generation_params: Parameters for text generation (temperature, max_new_tokens, etc.)
             use_saved_suite: Whether to use a saved test suite
             saved_suite_path: Path to the saved test suite file
         """
         self.model = model
         self.batch_size = batch_size
+        self.generation_params = generation_params or {}
         self.use_saved_suite = use_saved_suite
         self.saved_suite_path = saved_suite_path
         self.base_instruction = get_base_instruction()
@@ -226,7 +229,8 @@ class ModelEvaluator:
         print(f"Generating responses for {len(all_prompts)} prompts...")
         responses = self.model.generate_responses(
             all_prompts,
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
+            **self.generation_params
         )
         
         # Process results
