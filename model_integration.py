@@ -139,18 +139,17 @@ def evaluate_model(
         batch_size: Number of prompts to process in parallel
         **model_kwargs: Additional arguments to pass to HuggingFaceModel
     """
-    # Initialize model with batch processing
+    # Initialize model
     model = HuggingFaceModel(
-        model_name,
-        batch_size=batch_size,
+        model_name=model_name,
         **model_kwargs
     )
 
     if output_file is None:
         output_file = f"evaluation_results_{model_name.replace('/', '_')}.json"
     
-    # Initialize evaluator
-    evaluator = ModelEvaluator(model)
+    # Initialize evaluator with batch size
+    evaluator = ModelEvaluator(model, batch_size=batch_size)
     
     # Run evaluation
     print(f"Starting evaluation of {model_name}...")

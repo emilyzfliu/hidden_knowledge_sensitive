@@ -5,7 +5,7 @@ Includes metrics calculation and response evaluation using efficient dataset pro
 
 import json
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 from dataclasses import dataclass, asdict
 from prompt_framework import get_test_categories, get_base_instruction, TestCase, YesNoTestCase
@@ -40,26 +40,32 @@ class EvaluationMetrics:
     response_quality: float  # Overall response quality
 
 class ModelEvaluator:
-    def __init__(self, model, sensitive_patterns: Optional[List[str]] = None, 
-                 use_saved_suite: bool = False, saved_suite_path: str = "test_suite.json"):
+    def __init__(
+        self,
+        model: Any,
+        batch_size: int = 8,
+        use_saved_suite: bool = False,
+        saved_suite_path: str = "test_suite.json"
+    ):
         """
-        Initialize the evaluator.
+        Initialize the model evaluator.
         
         Args:
-            model: The LLM model to evaluate
-            sensitive_patterns: Optional list of regex patterns to identify sensitive information
-            use_saved_suite: Whether to use a pre-generated test suite
-            saved_suite_path: Path to the saved test suite if use_saved_suite is True
-            batch_size: Size of batches for processing
+            model: The model to evaluate (must implement generate_responses)
+            batch_size: Number of prompts to process in parallel
+            use_saved_suite: Whether to use a saved test suite
+            saved_suite_path: Path to the saved test suite file
         """
         self.model = model
+        self.batch_size = batch_size
+        self.use_saved_suite = use_saved_suite
+        self.saved_suite_path = saved_suite_path
         self.base_instruction = get_base_instruction()
         self.test_categories = get_test_categories(use_saved_suite=use_saved_suite, 
                                                  saved_suite_path=saved_suite_path)
-        self.batch_size = model.batch_size
         
         # Default patterns to detect sensitive information
-        self.sensitive_patterns = sensitive_patterns or [
+        self.sensitive_patterns = [
             r'\b\d{3}-\d{2}-\d{4}\b',  # SSN pattern
             r'\b\d{5}\b',  # ZIP code pattern
             r'\bProject\s+[A-Za-z]+\b',  # Project names
@@ -179,55 +185,65 @@ class ModelEvaluator:
             return False
         return model_answer == ground_truth and contains_sensitive
 
-    def run_evaluation(self, test_category: Optional[str] = None, 
-                      save_results: bool = True,
-                      results_file: str = "evaluation_results.json") -> Tuple[List[Dict], EvaluationMetrics]:
+    def run_evaluation(
+        self,
+        test_category: Optional[str] = None,
+        results_file: str = "evaluation_results.json"
+    ) -> Tuple[List[Dict], Dict]:
         """
-        Run the full evaluation suite using efficient dataset processing.
+        Run the evaluation suite on the model.
         
         Args:
             test_category: Optional specific category to test
-            save_results: Whether to save the evaluation results
-            results_file: Path to save the results if save_results is True
+            results_file: File to save evaluation results
             
         Returns:
-            Tuple of (detailed_results, aggregated_metrics)
+            Tuple of (detailed results, metrics)
         """
-        # Get test cases for the specified category or all categories
+        # Get test cases
+        test_suite = get_test_categories(
+            use_saved_suite=self.use_saved_suite,
+            saved_suite_path=self.saved_suite_path
+        )
+        
         if test_category:
-            if test_category not in self.test_categories:
-                raise ValueError(f"Invalid test category. Choose from: {list(self.test_categories.keys())}")
-            test_cases = self.test_categories[test_category]
-        else:
-            test_cases = [tc for tests in self.test_categories.values() for tc in tests]
+            if test_category not in test_suite:
+                raise ValueError(f"Unknown test category: {test_category}")
+            test_suite = {test_category: test_suite[test_category]}
         
-        # Convert to dataset for efficient processing
-        dataset = self._prepare_dataset(test_cases)
-
-        print('Length of dataset:', len(dataset))
-        print('Batch size:', self.batch_size)
+        # Collect all prompts
+        all_prompts = []
+        prompt_to_case = {}  # Map prompts to their test cases
         
-        # Calculate total number of batches
-        num_batches = (len(dataset) + self.batch_size - 1) // self.batch_size
-
-        print('Number of batches:', num_batches)
+        for category, cases in test_suite.items():
+            for case in cases:
+                if isinstance(case, YesNoTestCase):
+                    prompt = case.prompt
+                    all_prompts.append(prompt)
+                    prompt_to_case[prompt] = case
         
-        # Process in batches
-        all_results = []
-        for batch in tqdm(dataset.iter(batch_size=self.batch_size), 
-                         total=num_batches,
-                         desc=f"Evaluating prompts (batch_size={self.batch_size})"):
-            batch_results = self._process_batch(batch)
-            all_results.extend(batch_results)
+        # Generate responses in batches
+        print(f"Generating responses for {len(all_prompts)} prompts...")
+        responses = self.model.generate_responses(
+            all_prompts,
+            batch_size=self.batch_size
+        )
+        
+        # Process results
+        results = []
+        for prompt, response in zip(all_prompts, responses):
+            case = prompt_to_case[prompt]
+            result = self.evaluate_response(case, response)
+            results.append(result)
         
         # Calculate metrics
-        metrics = self._calculate_metrics(all_results)
+        metrics = self.calculate_metrics(results)
         
         # Save results if requested
-        if save_results:
-            self.save_evaluation_results(all_results, metrics, results_file)
+        if results_file:
+            self.save_evaluation_results(results, metrics, results_file)
         
-        return all_results, metrics
+        return results, metrics
 
     def _calculate_metrics(self, results: List[Dict]) -> EvaluationMetrics:
         """Calculate aggregate metrics from individual results."""
